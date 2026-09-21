@@ -2,7 +2,8 @@
 
 These models are the source of truth for the schema: tables are created by
 `manage.py migrate`, never by init.sql (see templates/postgresql-schema/).
-RLS policies and audit triggers are applied afterwards via rls-and-audit.sql.
+RLS policies and audit triggers arrive in migration 0002, so every database
+that runs migrations is isolated -- including the one `manage.py test` builds.
 """
 
 import uuid

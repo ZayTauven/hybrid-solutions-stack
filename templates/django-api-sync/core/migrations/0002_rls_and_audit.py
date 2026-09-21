@@ -1,28 +1,30 @@
--- ============================================================================
--- Multi-tenant isolation (RLS) + audit trail
--- ============================================================================
--- APPLY AFTER `manage.py migrate`: this script assumes invoices, sync_events
--- and audit_logs already exist.
---
---   docker compose exec -T postgres \
---     psql -U appuser -d shared_meta < templates/postgresql-schema/rls-and-audit.sql
---
--- Session context the application must set on every connection:
---   SET app.current_tenant_id = '<uuid>';
---   SET app.client_ip        = '<ip>';     -- optional
--- Without app.current_tenant_id the policies deny everything (fail-closed).
--- ============================================================================
+"""Row-level security and the audit trail, as a migration.
 
+This used to be a hand-applied rls-and-audit.sql. Two things were wrong with
+that. It had to be remembered after every migration that added a tenant-scoped
+table, and the test database Django creates never received it -- so an
+isolation test would have passed against a database with no policies at all,
+which is the one result worse than a failure.
+
+Applying it here means every database that runs migrations is isolated,
+including the test one.
+"""
+
+from django.db import migrations
+
+FORWARD_SQL = r"""
 -- ---------------------------------------------------------------------------
 -- 1. Enable RLS
 -- ---------------------------------------------------------------------------
--- ENABLE alone is NOT enough: a table's owner is exempt from its own policies.
--- Django migrations create the tables under the application role, so that role
--- owns them and would bypass isolation. FORCE removes the exemption.
+-- ENABLE alone is NOT enough: a table's owner is exempt from its own policies,
+-- and migrations create these tables under the application role, which
+-- therefore owns them. FORCE removes the exemption.
 ALTER TABLE invoices    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoices    FORCE  ROW LEVEL SECURITY;
 ALTER TABLE sync_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_events FORCE  ROW LEVEL SECURITY;
+ALTER TABLE sync_conflicts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sync_conflicts FORCE  ROW LEVEL SECURITY;
 ALTER TABLE audit_logs  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs  FORCE  ROW LEVEL SECURITY;
 
@@ -43,6 +45,11 @@ CREATE POLICY tenant_isolation_sync ON sync_events
     FOR ALL
     USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', TRUE), '')::UUID);
 
+DROP POLICY IF EXISTS tenant_isolation_conflicts ON sync_conflicts;
+CREATE POLICY tenant_isolation_conflicts ON sync_conflicts
+    FOR ALL
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', TRUE), '')::UUID);
+
 DROP POLICY IF EXISTS tenant_isolation_audit ON audit_logs;
 CREATE POLICY tenant_isolation_audit ON audit_logs
     FOR ALL
@@ -51,18 +58,15 @@ CREATE POLICY tenant_isolation_audit ON audit_logs
 -- ---------------------------------------------------------------------------
 -- 3. Audit trigger
 -- ---------------------------------------------------------------------------
--- SECURITY DEFINER: the trigger must be able to write to audit_logs even when
--- the caller's own policy would block it, otherwise every legitimate write
--- would fail at logging time.
+-- created_at is supplied explicitly: Django's auto_now_add fills it in the ORM
+-- layer, so the column carries no database default and a trigger-side INSERT
+-- would violate its NOT NULL constraint.
 CREATE OR REPLACE FUNCTION audit_trigger()
 RETURNS TRIGGER
 SECURITY DEFINER
 SET search_path = public
-AS $$
+AS $audit$
 BEGIN
-    -- created_at is supplied explicitly: Django's auto_now_add fills it in the
-    -- ORM layer, so the column carries no database default and a trigger-side
-    -- INSERT would violate its NOT NULL constraint.
     INSERT INTO audit_logs (
         tenant_id, entity_type, entity_id, action,
         old_values, new_values, ip_address, created_at
@@ -78,7 +82,7 @@ BEGIN
     );
     RETURN COALESCE(NEW, OLD);
 END;
-$$ LANGUAGE plpgsql;
+$audit$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS audit_invoices ON invoices;
 CREATE TRIGGER audit_invoices AFTER INSERT OR UPDATE OR DELETE ON invoices
@@ -87,5 +91,43 @@ CREATE TRIGGER audit_invoices AFTER INSERT OR UPDATE OR DELETE ON invoices
 -- ---------------------------------------------------------------------------
 -- 4. Audit trail immutability
 -- ---------------------------------------------------------------------------
--- A log the application can rewrite proves nothing.
-REVOKE UPDATE, DELETE ON audit_logs FROM hybrid_app;
+-- A log the application can rewrite proves nothing. Revoked from the migrating
+-- role by name rather than hardcoding one, so a generated project is free to
+-- call its application role whatever it likes.
+DO $revoke$
+BEGIN
+    EXECUTE format('REVOKE UPDATE, DELETE ON audit_logs FROM %I', current_user);
+END
+$revoke$;
+"""
+
+REVERSE_SQL = r"""
+DO $regrant$
+BEGIN
+    EXECUTE format('GRANT UPDATE, DELETE ON audit_logs TO %I', current_user);
+END
+$regrant$;
+
+DROP TRIGGER IF EXISTS audit_invoices ON invoices;
+DROP FUNCTION IF EXISTS audit_trigger();
+
+DROP POLICY IF EXISTS tenant_isolation_invoices ON invoices;
+DROP POLICY IF EXISTS tenant_isolation_sync ON sync_events;
+DROP POLICY IF EXISTS tenant_isolation_conflicts ON sync_conflicts;
+DROP POLICY IF EXISTS tenant_isolation_audit ON audit_logs;
+
+ALTER TABLE invoices       DISABLE ROW LEVEL SECURITY;
+ALTER TABLE sync_events    DISABLE ROW LEVEL SECURITY;
+ALTER TABLE sync_conflicts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs     DISABLE ROW LEVEL SECURITY;
+"""
+
+
+class Migration(migrations.Migration):
+    dependencies = [
+        ('core', '0001_initial'),
+    ]
+
+    operations = [
+        migrations.RunSQL(sql=FORWARD_SQL, reverse_sql=REVERSE_SQL),
+    ]

@@ -295,7 +295,7 @@ templates:
     files:
       - "01-init-roles.sh (non-superuser application role)"
       - "init.sql (extensions only; schema belongs to Django migrations)"
-      - "rls-and-audit.sql (applied after migrate)"
+      - "core/migrations/0002_rls_and_audit.py (RLS + audit, applied by migrate)"
       
   env-templates:
     name: "Environment Variables"

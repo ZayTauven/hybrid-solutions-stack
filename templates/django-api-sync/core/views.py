@@ -24,9 +24,14 @@ from core.serializers import (
 
 logger = logging.getLogger(__name__)
 
-# Events returned per sync call. Bounded on purpose: a site reconnecting after
-# a long outage must not be handed an unbounded response it cannot parse.
-SYNC_BATCH_SIZE = getattr(settings, 'SYNC_BATCH_SIZE', 500)
+def _batch_size():
+    """Events returned per sync call.
+
+    Bounded on purpose: a site reconnecting after a long outage must not be
+    handed an unbounded response it cannot parse. Read per call rather than at
+    import, so a test can shrink it and exercise the truncation path.
+    """
+    return getattr(settings, 'SYNC_BATCH_SIZE', 500)
 
 
 @api_view(['GET'])
@@ -100,7 +105,6 @@ def sync(request):
 def _apply_event(request, tenant, event, origin):
     """Apply one client event under an optimistic lock."""
     entity_id = event['entityId']
-    client_version = event['version']
     base_version = event['baseVersion']
 
     if event['entityType'] != 'invoice':
@@ -112,6 +116,10 @@ def _apply_event(request, tenant, event, origin):
     # Each event is its own transaction: one conflicting invoice must not roll
     # back the twenty that synced cleanly alongside it.
     with transaction.atomic():
+        replayed = _replayed_outcome(tenant, event)
+        if replayed is not None:
+            return replayed
+
         invoice = (
             Invoice.objects.select_for_update()
             .filter(tenant=tenant, id=entity_id)
@@ -214,13 +222,9 @@ def _state_at_version(tenant, entity_id, version):
     return event.data if event else None
 
 
-def _record_event(request, tenant, event, origin, event_status, version):
-    """Persist the event, keyed by a content hash so retries are idempotent.
-
-    A client that loses the response and retries must not create a second
-    event: the hash makes the same push land on the same row.
-    """
-    digest = hashlib.sha256(
+def _event_digest(tenant, event):
+    """Content hash identifying one push, so a retry is recognisable as one."""
+    return hashlib.sha256(
         json.dumps(
             {
                 'tenant': str(tenant.id),
@@ -233,6 +237,39 @@ def _record_event(request, tenant, event, origin, event_status, version):
             default=str,
         ).encode()
     ).hexdigest()
+
+
+def _replayed_outcome(tenant, event):
+    """The original acceptance, when this exact push already succeeded.
+
+    Without this, a client that lost the response and retried would be told it
+    conflicts with its own earlier write: the record now sits one version ahead
+    of the base version it is still sending. It would then queue a conflict
+    over a change that was applied exactly as asked.
+
+    Only accepted pushes replay. A previous conflict is left to be re-detected,
+    since the server state it lost to may have moved on since.
+    """
+    previous = SyncEvent.objects.filter(
+        tenant=tenant, hash=_event_digest(tenant, event), status='synced'
+    ).first()
+
+    if previous is None:
+        return None
+
+    return {
+        'accepted': {'entityId': previous.entity_id, 'version': previous.version},
+        'conflict': None,
+    }
+
+
+def _record_event(request, tenant, event, origin, event_status, version):
+    """Persist the event, keyed by a content hash so retries are idempotent.
+
+    A client that loses the response and retries must not create a second
+    event: the hash makes the same push land on the same row.
+    """
+    digest = _event_digest(tenant, event)
 
     sync_event, _ = SyncEvent.objects.get_or_create(
         hash=digest,
@@ -274,10 +311,12 @@ def _events_since(tenant, last_sync_timestamp, origin):
         .order_by('server_received_at')
     )
 
+    batch_size = _batch_size()
+
     # One extra row tells us whether more remain, without a second COUNT query.
-    rows = list(queryset[: SYNC_BATCH_SIZE + 1])
-    has_more = len(rows) > SYNC_BATCH_SIZE
-    rows = rows[:SYNC_BATCH_SIZE]
+    rows = list(queryset[: batch_size + 1])
+    has_more = len(rows) > batch_size
+    rows = rows[:batch_size]
 
     if has_more and rows:
         boundary = rows[-1].server_received_at

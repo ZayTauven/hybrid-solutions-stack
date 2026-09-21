@@ -38,16 +38,20 @@ cp templates/env-templates/.env.example templates/docker-compose/.env
 # 2. Start everything
 $COMPOSE up -d --build
 
-# 3. Create the schema, then lock down isolation
+# 3. Create the schema and the isolation policies
 $COMPOSE exec django python manage.py migrate
-$COMPOSE exec -T postgres psql -U appuser -d shared_meta < templates/postgresql-schema/rls-and-audit.sql
 
 # 4. Seed two tenants with users and invoices
 $COMPOSE exec django python manage.py seed_demo
+
+# 5. Optional: prove the isolation holds
+$COMPOSE exec django python manage.py test
 ```
 
-Step 3 is not optional: migrations create the tables, not the policies. Without
-`rls-and-audit.sql`, tenants are not isolated.
+Migrations install the row-level security policies alongside the tables
+(`core/migrations/0002_rls_and_audit.py`), so isolation cannot be forgotten —
+and the test database gets it too, which is what makes the isolation tests
+worth anything.
 
 Open http://localhost:3000 and sign in as `mor_user` / `demo1234`. Switch the
 tenant selector to `MUT` and the API refuses — that user is not a member.

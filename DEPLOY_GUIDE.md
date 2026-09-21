@@ -80,24 +80,25 @@ docker-compose -f templates/docker-compose/docker-compose.yml exec django python
 docker-compose -f templates/docker-compose/docker-compose.yml exec django python manage.py createsuperuser
 ```
 
-### Step 4b: Apply Tenant Isolation (REQUIRED)
+### Step 4b: Verify Tenant Isolation
 
-Migrations create the tables; they do not create the RLS policies. Until this
-script runs, every tenant can read and write every other tenant's rows.
+`migrate` installs the row-level security policies as well as the tables
+(`core/migrations/0002_rls_and_audit.py`), so there is no separate step to
+remember. It is still worth confirming before real data goes in:
 
 ```bash
 COMPOSE="docker compose -f templates/docker-compose/docker-compose.yml"
-$COMPOSE exec -T postgres psql -U appuser -d shared_meta < templates/postgresql-schema/rls-and-audit.sql
-```
 
-Verify isolation actually holds before putting real data in:
-
-```bash
 # Expect 0 rows: no tenant context set means nothing is visible (fail-closed)
 $COMPOSE exec -T -e PGPASSWORD="$APP_DB_PASSWORD" postgres psql -U hybrid_app -d shared_meta -c "SELECT count(*) FROM invoices;"
+
+# Or run the suite, which asserts the same thing and rather more
+$COMPOSE exec django python manage.py test core.tests.test_isolation
 ```
 
-Re-run this script after every migration that adds a tenant-scoped table.
+If the first command returns anything other than 0, the application is
+connecting as a superuser and every policy is being bypassed. Check
+`DATABASE_URL` points at `hybrid_app`, not `appuser`.
 
 ### Step 4c: Seed demo data (optional)
 

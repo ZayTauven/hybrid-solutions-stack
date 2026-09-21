@@ -27,8 +27,8 @@ along the way, and what is still missing.
 docker compose -f templates/docker-compose/docker-compose.yml up -d --build
 ```
 
-Then follow the first-run steps in [DEPLOY_GUIDE.md](./DEPLOY_GUIDE.md): `migrate`,
-`rls-and-audit.sql`, `seed_demo`.
+Then follow the first-run steps in [DEPLOY_GUIDE.md](./DEPLOY_GUIDE.md):
+`migrate`, then `seed_demo`.
 
 ---
 
@@ -139,7 +139,7 @@ exactly the kind of behaviour that regresses silently.
 
 Not bugs, but things that will bite someone:
 
-- **`rls-and-audit.sql` must be re-run after any migration that adds a tenant-scoped table.** New tables arrive with no policy, which means no isolation. Nothing enforces this yet.
+- **A migration that adds a tenant-scoped table must also add its policy.** `0002_rls_and_audit.py` covers the tables that existed when it was written; a new one arrives with no policy, which means no isolation. Nothing enforces this yet.
 - **Every background job must set its own tenant context.** `core/tasks.py` has a `tenant_context` helper; a job that forgets it will quietly process nothing.
 - **Line items are denormalised into `Invoice.items` (JSON).** Deliberate — the invoice is the unit of sync — but it means no querying or aggregating across line items in SQL.
 - **The tenant switcher in the demo UI is a demo affordance.** A real deployment is one device, one tenant; the local store keeps both tenants' data side by side and filters on display.

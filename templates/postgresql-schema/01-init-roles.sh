@@ -7,8 +7,12 @@
 # decorative -- each tenant reads and writes every other tenant's data.
 #
 # hybrid_app is NOSUPERUSER + NOBYPASSRLS. Combined with FORCE ROW LEVEL
-# SECURITY (see rls-and-audit.sql), isolation holds even though this role owns
-# the tables its own migrations created.
+# SECURITY (applied by core/migrations/0002_rls_and_audit.py), isolation holds
+# even though this role owns the tables its own migrations created.
+#
+# CREATEDB is granted because `manage.py test` creates and drops a test
+# database as the connecting role. It does not weaken anything: RLS is governed
+# by BYPASSRLS and superuser status, both of which stay off.
 # ============================================================================
 set -e
 
@@ -19,7 +23,9 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-S
     BEGIN
         IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'hybrid_app') THEN
             CREATE ROLE hybrid_app LOGIN PASSWORD '${APP_DB_PASSWORD}'
-                NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+                NOSUPERUSER CREATEDB NOCREATEROLE NOBYPASSRLS;
+        ELSE
+            ALTER ROLE hybrid_app CREATEDB NOBYPASSRLS NOSUPERUSER;
         END IF;
     END
     \$\$;

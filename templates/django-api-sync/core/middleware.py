@@ -1,10 +1,10 @@
 """Tenant resolution and PostgreSQL session context.
 
 This middleware is what makes row-level security actually do something. The
-policies in rls-and-audit.sql filter on `app.current_tenant_id`; if nothing
-sets it, every query returns zero rows (fail-closed). Setting it wrongly is
-worse than not setting it at all, so the tenant is verified against the user's
-memberships before it ever reaches the database.
+policies installed by migration 0002 filter on `app.current_tenant_id`; if
+nothing sets it, every query returns zero rows (fail-closed). Setting it
+wrongly is worse than not setting it at all, so the tenant is verified against
+the user's memberships before it ever reaches the database.
 """
 
 import logging

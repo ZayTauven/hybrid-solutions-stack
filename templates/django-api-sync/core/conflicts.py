@@ -10,7 +10,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from core.models import AuditLog, Invoice
+from core.models import AuditLog, Invoice, SyncEvent
 from core.serializers import invoice_fields_from_payload
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,13 @@ class ConflictResolver:
             return self._resolve_manual(conflict)
 
         client = conflict.client_event.data
-        server = conflict.server_state
+        server = self._server_snapshot(conflict)
+        if server is None:
+            # The server state did not come from a sync push -- a seeded row, a
+            # fix through the admin -- so there is no client-shaped snapshot to
+            # compare against. Declaring every field changed would escalate
+            # anyway; saying so plainly is better than inferring it.
+            return self._resolve_manual(conflict)
 
         merged, contested = dict(base), []
         for field in set(client) | set(server):
@@ -117,6 +123,30 @@ class ConflictResolver:
         return outcome
 
     # -- helpers ------------------------------------------------------------
+
+    def _server_snapshot(self, conflict):
+        """The server's current state, in the shape clients speak.
+
+        `conflict.server_state` is the serializer's output, kept for display.
+        It is the wrong basis for a field-by-field comparison: DRF renders a
+        Decimal as the string "100.00" while the client sent the number 100, so
+        every amount reads as changed on both sides and a perfectly mergeable
+        conflict escalates. Comparing three client-shaped snapshots -- base,
+        client, and the event that produced the server's current version --
+        removes the mismatch by construction.
+        """
+        event = (
+            SyncEvent.objects.filter(
+                tenant=conflict.tenant,
+                entity_type=conflict.entity_type,
+                entity_id=conflict.entity_id,
+                version=conflict.server_version,
+                status='synced',
+            )
+            .order_by('-server_received_at')
+            .first()
+        )
+        return event.data if event else None
 
     def _apply(self, conflict, data):
         if conflict.entity_type != 'invoice':

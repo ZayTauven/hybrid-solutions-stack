@@ -5,10 +5,13 @@
 #
 # First run, once django is healthy:
 #   docker compose exec django python manage.py migrate
-#   docker compose exec -T postgres psql -U appuser -d shared_meta #     < ../postgresql-schema/rls-and-audit.sql
 #   docker compose exec django python manage.py seed_demo
 #
-# Step 2 is not optional: migrations create the tables, not the RLS policies.
+# Migrations install the tenant isolation policies alongside the tables
+# (core/migrations/0002_rls_and_audit.py), so there is no manual SQL step and
+# no way to forget it.
+#
+# SKIN selects which frontend is built and mounted; default is `minimal`.
 # ============================================================================
 
 services:
