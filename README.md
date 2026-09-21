@@ -1,32 +1,66 @@
 # Hybrid Solutions Stack
 
-**Complete offline-first application framework for connectivity-constrained regions**
+**A factory for offline-first applications, for places where the network is not a given**
 
-Build resilient business applications that work locally, sync across LANs, and connect to central servers — with zero forced internet dependency.
+Business applications that work locally, sync when they can, and never assume
+a connection. Built to be produced repeatedly, without every client ending up
+with the same product wearing a different logo.
 
 ---
 
 ## 🎯 What This Is
 
-An **offline-first application stack** with:
+Three things, in layers:
 
-- ✅ **9 Reusable Skills** (database, sync, conflicts, auth, backup, etc.)
-- ✅ **6 Orchestration Agents** (ERP, CRM, Project Management, Scaling)
-- ✅ **Running stack** — PostgreSQL + Redis + Django API + Celery + NextJS
-- 🚧 **Templates** — Expo mobile not started, see [GAPS.md](./GAPS.md)
+- **An architecture that holds.** PostgreSQL row-level security enforces tenant isolation — not application code, which can be forgotten. A bidirectional sync engine handles disconnected edits, detects conflicts and refuses to guess when guessing would cost money. 45 tests stand behind it.
+- **A portable core.** `@hybrid/offline-core` — stores, sync, auth, tombstones — with no UI dependency, so it mounts on any frontend.
+- **A generator.** `create-hybrid-app` assembles the backend, the core and a skin into a project, prunes the skin's demo content, and draws it a palette, a shape and a layout of its own.
 
-One `docker compose up` brings up the whole thing. Tenant isolation is enforced
-by PostgreSQL row-level security, not by application code, and was verified
-against the running database. There is no automated test suite yet — the
-largest remaining gap.
+Plus 9 skills and 6 orchestration agents as design reference.
+
+```bash
+node tools/create-hybrid-app --name acme-erp --skin minimal
+```
 
 **For contexts like:** Comores, rural Africa, developing economies, disaster zones, offline fieldwork
+
+### Skins
+
+| Skin | Stack | Source |
+|------|-------|--------|
+| `minimal` | Plain CSS, no design system | Ships here |
+| `vireo` | Tailwind v4, three-layer tokens, 12 accents, RTL | Licensed separately |
+| `cuba` | Bootstrap 5 + SCSS, i18n, 12 layout variants | Not yet adapted |
+
+Vireo and Cuba are commercial templates. This repository holds the adapters —
+what to prune, what to patch, how to wire the core — not the templates
+themselves. Drop your licensed copy in `skins-src/<name>/` and the generator
+picks it up; run it without one and it tells you exactly where it looked.
 
 ---
 
 ## 🚀 Quick Start
 
-### Option 1: Run it locally (~5 min)
+### Option 1: Generate a project
+
+```bash
+node tools/create-hybrid-app --name acme-erp --skin minimal
+cd acme-erp
+
+COMPOSE="docker compose -f docker/docker-compose.yml --env-file .env"
+$COMPOSE up -d --build
+$COMPOSE exec django python manage.py migrate
+$COMPOSE exec django python manage.py seed_demo
+$COMPOSE exec django python manage.py test
+```
+
+The generator picks host ports that are actually free, writes fresh secrets,
+and draws the project a palette and a shape from its name. Its README records
+the seed, so the identity is reproducible rather than accidental.
+
+Add `--skin vireo` once `skins-src/vireo/` holds your licensed copy.
+
+### Option 2: Run this repository itself (~5 min)
 
 ```bash
 COMPOSE="docker compose -f templates/docker-compose/docker-compose.yml"
@@ -66,7 +100,7 @@ If a native PostgreSQL already holds 5432, set `POSTGRES_HOST_PORT` in
 `templates/docker-compose/.env` — the same applies to `DJANGO_HOST_PORT` and
 `NEXTJS_HOST_PORT`.
 
-### Option 2: Deploy Central Server (1 day)
+### Option 3: Deploy Central Server (1 day)
 
 Use Agent: `deploy-central-server`
 
@@ -75,7 +109,7 @@ cd agents/deploy-central-server
 # Follow guide in agent.md
 ```
 
-### Option 3: Migrate Existing App (4-6 weeks)
+### Option 4: Migrate Existing App (4-6 weeks)
 
 Use Agent: `migrate-existing-to-hybrid`
 
@@ -276,40 +310,29 @@ Not written yet: `ARCHITECTURE.md`, `PERFORMANCE_TUNING.md`, `TROUBLESHOOTING.md
 
 ```
 hybrid-stack/
-├── skills/                          # 9 reusable building blocks
-│   ├── sync-engine-setup/
-│   ├── postgresql-multi-tenant/
-│   ├── jwt-offline-auth/
-│   ├── conflict-resolution/
-│   ├── crdt-integration/
-│   ├── docker-infrastructure/
-│   ├── postgresql-backup/
-│   ├── celery-async-jobs/
-│   └── data-integrity/
+├── packages/offline-core/           # The portable layer: stores, sync, auth
 │
-├── agents/                          # 6 orchestration workflows
-│   ├── bootstrap-hybrid-erp/
-│   ├── bootstrap-project-mgmt/
-│   ├── bootstrap-crm/
-│   ├── deploy-central-server/
-│   ├── migrate-existing-to-hybrid/
-│   └── scale-to-production/
+├── tools/create-hybrid-app/         # The generator
 │
-├── templates/                       # Code starters
-│   ├── nextjs-offline-first/
-│   ├── django-api-sync/
-│   ├── expo-mobile-offline/
+├── templates/
+│   ├── django-api-sync/             # Backend: sync endpoint, tenant middleware,
+│   │                                #   conflict strategies, Celery jobs, tests
+│   ├── postgresql-schema/           # Roles and extensions (schema lives in migrations)
 │   ├── docker-compose/
-│   ├── postgresql-schema/
-│   └── env-templates/
+│   ├── env-templates/
+│   └── skins/                       # Adapters, not templates
+│       ├── minimal/                 #   ships here
+│       ├── vireo/                   #   needs skins-src/vireo
+│       └── cuba/                    #   not yet written
 │
-├── docs/                            # Guides & reference
-│   ├── DEPLOY_GUIDE.md
-│   ├── ARCHITECTURE.md
-│   ├── PERFORMANCE_TUNING.md
-│   └── TROUBLESHOOTING.md
+├── skills/                          # 9 reusable building blocks
+├── agents/                          # 6 orchestration workflows
+│
+├── skins-src/                       # IGNORED — your licensed template copies
+├── assets-bank/                     # IGNORED — your asset library
 │
 ├── stack.yml                        # Stack definition
+├── GAPS.md                          # What is done, what is not
 └── README.md                        # This file
 ```
 
