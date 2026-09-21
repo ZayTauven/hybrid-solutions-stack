@@ -1,0 +1,390 @@
+---
+# Hybrid Solutions Stack Definition
+# Complete offline-first application framework
+
+version: "1.0"
+name: "Hybrid Solutions Stack"
+description: "Offline-first, connectivity-resilient IT solutions for constrained networks"
+author: "Zay"
+created: "2026-09-20"
+
+# ============================================================================
+# SKILLS: Reusable, composable building blocks
+# ============================================================================
+
+skills:
+  sync-engine:
+    name: "Bidirectional Sync Engine Setup"
+    description: "Bootstrap offline-first sync with conflict detection"
+    path: "skills/sync-engine-setup/SKILL.md"
+    duration: "4-6 hours"
+    complexity: "medium"
+    dependencies: []
+    outputs:
+      - "Django sync API endpoints"
+      - "Frontend sync manager (Zustand + TanStack Query)"
+      - "Conflict detection logic"
+      
+  postgresql-multi-tenant:
+    name: "PostgreSQL Multi-Tenant Setup"
+    description: "Configure isolated databases with RLS and audit"
+    path: "skills/postgresql-multi-tenant/SKILL.md"
+    duration: "3-4 hours"
+    complexity: "high"
+    dependencies: []
+    outputs:
+      - "Tenant-isolated databases"
+      - "RLS policies"
+      - "Audit triggers"
+      
+  jwt-offline-auth:
+    name: "JWT Offline Authentication"
+    description: "Implement offline-working JWT-based auth"
+    path: "skills/jwt-offline-auth/SKILL.md"
+    duration: "2-3 hours"
+    complexity: "medium"
+    dependencies: []
+    outputs:
+      - "JWT token generation & validation"
+      - "Offline session persistence"
+      - "Token refresh strategy"
+      
+  conflict-resolution:
+    name: "Conflict Detection & Resolution"
+    description: "Handle simultaneous offline edits"
+    path: "skills/conflict-resolution/SKILL.md"
+    duration: "3-4 hours"
+    complexity: "medium"
+    dependencies: ["sync-engine"]
+    outputs:
+      - "Versioning strategy"
+      - "LWW, FWW, CRDT conflict resolution"
+      - "Conflict resolution UI"
+      
+  crdt-integration:
+    name: "CRDT Integration (Yjs)"
+    description: "Conflict-free collaborative editing"
+    path: "skills/crdt-integration/SKILL.md"
+    duration: "3-4 hours"
+    complexity: "high"
+    dependencies: []
+    outputs:
+      - "Yjs document setup"
+      - "Real-time sync"
+      - "IndexedDB persistence"
+      
+  docker-infrastructure:
+    name: "Docker Infrastructure Setup"
+    description: "Production-ready Docker compose"
+    path: "skills/docker-infrastructure/SKILL.md"
+    duration: "2-3 hours"
+    complexity: "medium"
+    dependencies: []
+    outputs:
+      - "docker-compose.yml"
+      - "Health checks"
+      - "Multi-service orchestration"
+      
+  postgresql-backup:
+    name: "PostgreSQL Backup Strategy"
+    description: "3-2-1 backup with S3 offsite"
+    path: "skills/postgresql-backup/SKILL.md"
+    duration: "2-3 hours"
+    complexity: "medium"
+    dependencies: ["postgresql-multi-tenant"]
+    outputs:
+      - "Backup scripts"
+      - "S3 upload automation"
+      - "Restore procedures"
+      
+  celery-async-jobs:
+    name: "Celery Async Jobs"
+    description: "Background task processing"
+    path: "skills/celery-async-jobs/SKILL.md"
+    duration: "2-3 hours"
+    complexity: "low"
+    dependencies: ["docker-infrastructure"]
+    outputs:
+      - "Celery task definitions"
+      - "Periodic task scheduler"
+      - "Result backend setup"
+      
+  data-integrity:
+    name: "Data Integrity & Audit Trail"
+    description: "Immutable audit logs and versioning"
+    path: "skills/data-integrity/SKILL.md"
+    duration: "3-4 hours"
+    complexity: "medium"
+    dependencies: ["postgresql-multi-tenant"]
+    outputs:
+      - "Audit logging system"
+      - "Rollback capability"
+      - "Data validation"
+
+# ============================================================================
+# AGENTS: Orchestrators that compose skills for specific use cases
+# ============================================================================
+
+agents:
+  bootstrap-hybrid-erp:
+    name: "Bootstrap Hybrid ERP"
+    description: "Create complete offline-first ERP from scratch"
+    path: "agents/bootstrap-hybrid-erp/agent.md"
+    duration: "2-3 weeks"
+    skills:
+      - "docker-infrastructure"
+      - "postgresql-multi-tenant"
+      - "sync-engine"
+      - "jwt-offline-auth"
+      - "conflict-resolution"
+      - "data-integrity"
+      - "celery-async-jobs"
+      - "postgresql-backup"
+    outputs:
+      - "Complete ERP application"
+      - "Invoices module"
+      - "Inventory module"
+      - "GL auto-generation"
+      - "Deployment guide"
+      
+  bootstrap-project-mgmt:
+    name: "Bootstrap Project Management"
+    description: "Offline-first project tracking with tasks"
+    path: "agents/bootstrap-project-mgmt/agent.md"
+    duration: "2-3 weeks"
+    skills:
+      - "docker-infrastructure"
+      - "postgresql-multi-tenant"
+      - "sync-engine"
+      - "crdt-integration"
+      - "jwt-offline-auth"
+      - "conflict-resolution"
+      - "data-integrity"
+      - "celery-async-jobs"
+    outputs:
+      - "Projects module"
+      - "Tasks with CRDT (no conflicts)"
+      - "Timesheets"
+      - "Team management"
+      
+  bootstrap-crm:
+    name: "Bootstrap CRM"
+    description: "Sales pipeline & contact management"
+    path: "agents/bootstrap-crm/agent.md"
+    duration: "2 weeks"
+    skills:
+      - "docker-infrastructure"
+      - "postgresql-multi-tenant"
+      - "sync-engine"
+      - "jwt-offline-auth"
+      - "conflict-resolution"
+      - "data-integrity"
+      - "celery-async-jobs"
+    outputs:
+      - "Contacts module"
+      - "Companies module"
+      - "Deals pipeline"
+      - "Interactions tracking"
+      
+  deploy-central-server:
+    name: "Deploy Central Server"
+    description: "Setup production Hetzner/LWS server"
+    path: "agents/deploy-central-server/agent.md"
+    duration: "2-3 days"
+    skills:
+      - "docker-infrastructure"
+      - "postgresql-multi-tenant"
+      - "postgresql-backup"
+      - "celery-async-jobs"
+      - "data-integrity"
+    outputs:
+      - "Production docker-compose"
+      - "Nginx config"
+      - "PostgreSQL replication"
+      - "Backup automation"
+      - "Monitoring dashboards"
+      
+  migrate-existing-to-hybrid:
+    name: "Migrate Existing App to Hybrid"
+    description: "Convert online-only app to offline-first"
+    path: "agents/migrate-existing-to-hybrid/agent.md"
+    duration: "4-6 weeks"
+    skills:
+      - "all"
+    outputs:
+      - "Migration plan"
+      - "Offline-first state management"
+      - "Sync integration"
+      - "Phased rollout strategy"
+      
+  scale-to-production:
+    name: "Scale to Production"
+    description: "Scale from 1 to 5000+ tenants"
+    path: "agents/scale-to-production/agent.md"
+    duration: "3-6 months"
+    skills:
+      - "docker-infrastructure"
+      - "postgresql-multi-tenant"
+      - "postgresql-backup"
+      - "celery-async-jobs"
+    outputs:
+      - "Replication setup"
+      - "Load balancing"
+      - "Database sharding"
+      - "Multi-region strategy"
+
+# ============================================================================
+# TEMPLATES: Code starters for specific layers
+# ============================================================================
+
+templates:
+  nextjs-offline-first:
+    name: "NextJS Offline-First Starter"
+    path: "templates/nextjs-offline-first"
+    status: "implemented"
+    files:
+      - "app/page.tsx"
+      - "app/layout.tsx"
+      - "app/providers.tsx"
+      - "components/LoginForm.tsx"
+      - "components/InvoiceList.tsx"
+      - "components/SyncStatus.tsx"
+      - "hooks/useAuth.ts"
+      - "hooks/useSyncQuery.ts"
+      - "lib/stores/useInvoiceStore.ts"
+      - "Dockerfile"
+      
+  django-api-sync:
+    name: "Django API & Sync Backend"
+    path: "templates/django-api-sync"
+    status: "implemented"
+    files:
+      - "myapp/settings.py"
+      - "myapp/celery.py"
+      - "core/models.py"
+      - "core/views.py (sync, conflicts, health)"
+      - "core/middleware.py (tenant routing + RLS context)"
+      - "core/conflicts.py (resolution strategies)"
+      - "core/serializers.py"
+      - "core/tasks.py (retention purge)"
+      - "core/management/commands/seed_demo.py"
+      - "Dockerfile"
+      
+  expo-mobile-offline:
+    name: "Expo Mobile App (Offline)"
+    path: "templates/expo-mobile-offline"
+    status: "not started"
+    files:
+      - "hooks/useLocalDB.ts"
+      - "services/sync.ts"
+      - "components/OfflineIndicator.tsx"
+      
+  docker-compose:
+    name: "Complete Docker Compose"
+    path: "templates/docker-compose"
+    status: "implemented (Makefile pending)"
+    files:
+      - "docker-compose.yml"
+      - ".env.example"
+      - "Makefile (not written)"
+      
+  postgresql-schema:
+    name: "PostgreSQL Initialization"
+    path: "templates/postgresql-schema"
+    status: "implemented"
+    files:
+      - "01-init-roles.sh (non-superuser application role)"
+      - "init.sql (extensions only; schema belongs to Django migrations)"
+      - "rls-and-audit.sql (applied after migrate)"
+      
+  env-templates:
+    name: "Environment Variables"
+    path: "templates/env-templates"
+    files:
+      - ".env.example"
+      - ".env.production"
+      - ".env.staging"
+
+# ============================================================================
+# INTEGRATIONS: External services & tools
+# ============================================================================
+
+integrations:
+  postgresql:
+    versions: ["14", "15", "16"]
+    features: ["RLS", "JSON", "UUID", "WAL Archiving"]
+    
+  redis:
+    versions: ["6", "7"]
+    features: ["Session", "Task Queue", "Cache"]
+    
+  docker:
+    requirement: "19.0+"
+    features: ["Docker Compose", "Multi-container orchestration"]
+    
+  aws-s3:
+    optional: true
+    use_case: "Offsite backup storage"
+    
+  sentry:
+    optional: true
+    use_case: "Error tracking"
+
+# ============================================================================
+# DEPLOYMENT PROFILES
+# ============================================================================
+
+deployment_profiles:
+  local-single-site:
+    description: "Single site, local PostgreSQL"
+    estimated_cost: "$0 (self-hosted)"
+    estimated_users: "1-100"
+    setup_time: "2-4 hours"
+    
+  central-server:
+    description: "Hetzner/LWS central + sync"
+    estimated_cost: "$10-20/month"
+    estimated_users: "10-1000"
+    setup_time: "1-2 days"
+    
+  production-scale:
+    description: "Multi-region, sharded, replicated"
+    estimated_cost: "$100-500/month"
+    estimated_users: "1000+"
+    setup_time: "2-3 months"
+
+# ============================================================================
+# DOCUMENTATION & GUIDES
+# ============================================================================
+
+docs:
+  - path: "README.md"
+    description: "Stack overview & quick start"
+    
+  - path: "DEPLOY_GUIDE.md"
+    description: "Step-by-step deployment instructions"
+    
+  - path: "ARCHITECTURE.md"
+    description: "System design & patterns"
+    
+  - path: "PERFORMANCE_TUNING.md"
+    description: "Optimization guide for production"
+    
+  - path: "TROUBLESHOOTING.md"
+    description: "Common issues & solutions"
+
+# ============================================================================
+# VERSION & MAINTENANCE
+# ============================================================================
+
+version_history:
+  "1.0":
+    released: "2026-09-20"
+    features: ["9 skills", "6 agents", "Complete templates"]
+    
+next_features:
+  - "GraphQL sync (alternative to REST)"
+  - "Native mobile apps (React Native)"
+  - "Analytics offline"
+  - "Advanced RBAC"
+  - "Multi-language UI"

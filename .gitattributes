@@ -1,0 +1,5 @@
+* text=auto eol=lf
+
+# Scripts executed inside Linux containers: CRLF would break the shebang.
+*.sh text eol=lf
+*.sql text eol=lf

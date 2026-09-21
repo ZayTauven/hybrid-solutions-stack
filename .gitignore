@@ -1,0 +1,65 @@
+# ---------------------------------------------------------------------------
+# Licensed third-party material — MUST NOT be committed
+# ---------------------------------------------------------------------------
+# This repository is public. Vireo ships under an Envato Regular License and
+# Cuba under a Pixelstrap commercial license; neither permits redistributing
+# the source. The generator consumes them from a local, unversioned copy
+# instead — see tools/create-hybrid-app and templates/skins/.
+Next-template/
+next-template-cuba/
+skins-src/
+
+# The asset bank holds Freepik-copyrighted files and third-party trademarks
+# with no license record, plus ~139 MB of incompressible camera originals.
+# It stays out of git; only the derived, cleared web set ships with a project.
+Banque-assets/
+assets-bank/
+
+# ---------------------------------------------------------------------------
+# Env & secrets
+# ---------------------------------------------------------------------------
+.env
+.env.local
+.env.production
+.env.staging
+*.pem
+*.key
+
+# ---------------------------------------------------------------------------
+# Node
+# ---------------------------------------------------------------------------
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.sqlite3
+staticfiles/
+
+# ---------------------------------------------------------------------------
+# Docker / data
+# ---------------------------------------------------------------------------
+postgres_data/
+redis_data/
+backups/
+
+# ---------------------------------------------------------------------------
+# Runtime artefacts
+# ---------------------------------------------------------------------------
+celerybeat-schedule*
+*.tsbuildinfo
+
+# ---------------------------------------------------------------------------
+# OS / IDE
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

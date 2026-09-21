@@ -1,0 +1,148 @@
+# ============================================================================
+# Hybrid stack - local orchestration
+# ============================================================================
+#   docker compose up -d --build
+#
+# First run, once django is healthy:
+#   docker compose exec django python manage.py migrate
+#   docker compose exec -T postgres psql -U appuser -d shared_meta #     < ../postgresql-schema/rls-and-audit.sql
+#   docker compose exec django python manage.py seed_demo
+#
+# Step 2 is not optional: migrations create the tables, not the RLS policies.
+# ============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: shared_meta
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      # Password of the non-superuser application role created by
+      # 01-init-roles.sh. Kept separate from POSTGRES_PASSWORD: that role, not
+      # appuser, is the one RLS policies actually apply to.
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-changeme_app}
+    ports:
+      # Configurable host port: a native PostgreSQL instance often already
+      # holds 5432 on a development machine.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Executed in alphabetical order, on first startup only.
+      - ../postgresql-schema/01-init-roles.sh:/docker-entrypoint-initdb.d/01-init-roles.sh:ro
+      - ../postgresql-schema/init.sql:/docker-entrypoint-initdb.d/02-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d shared_meta"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hybrid
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hybrid
+
+  django:
+    build:
+      context: ../django-api-sync
+      dockerfile: Dockerfile
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DATABASE_URL: postgresql://hybrid_app:${APP_DB_PASSWORD:-changeme_app}@postgres:5432/shared_meta
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: ${DEBUG:-false}
+      SECRET_KEY: ${SECRET_KEY:-dev-key-change-in-production}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-key-change-in-production}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      TENANT_MODE: local
+    ports:
+      - "${DJANGO_HOST_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../django-api-sync:/app
+    networks:
+      - hybrid
+
+  celery:
+    build:
+      context: ../django-api-sync
+      dockerfile: Dockerfile
+    command: celery -A myapp worker -l info
+    environment:
+      DATABASE_URL: postgresql://hybrid_app:${APP_DB_PASSWORD:-changeme_app}@postgres:5432/shared_meta
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-dev-key-change-in-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../django-api-sync:/app
+    networks:
+      - hybrid
+
+  celery-beat:
+    build:
+      context: ../django-api-sync
+      dockerfile: Dockerfile
+    command: celery -A myapp beat -l info
+    environment:
+      DATABASE_URL: postgresql://hybrid_app:${APP_DB_PASSWORD:-changeme_app}@postgres:5432/shared_meta
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-dev-key-change-in-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../django-api-sync:/app
+    networks:
+      - hybrid
+
+  nextjs:
+    build:
+      context: ../nextjs-offline-first
+      dockerfile: Dockerfile
+    command: npm run dev
+    environment:
+      # Read by the browser: must point at Django directly, not at the
+      # Next.js origin (see the fix in hooks/useSyncQuery.ts).
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_API_TIMEOUT: "30000"
+    ports:
+      - "${NEXTJS_HOST_PORT:-3000}:3000"
+    depends_on:
+      - django
+    volumes:
+      - ../nextjs-offline-first:/app
+      - /app/node_modules
+    networks:
+      - hybrid
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  hybrid:
+    driver: bridge
