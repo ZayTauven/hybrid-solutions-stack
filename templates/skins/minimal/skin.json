@@ -1,0 +1,31 @@
+{
+  "title": "Minimal",
+  "description": "Reference skin. Plain CSS, no design system, no demo content. What the offline core looks like with nothing on top of it.",
+  "source": {
+    "vendored": ".",
+    "license": "MIT — ships with this repository"
+  },
+  "dependencies": {
+    "@hybrid/offline-core": "*"
+  },
+  "layouts": [],
+  "patches": [
+    {
+      "file": "app/globals.css",
+      "replacements": [
+        {
+          "find": "  --accent: #2f6f4e;",
+          "replace": "  --accent: {{PRIMARY}};\n  --accent-secondary: {{SECONDARY}};"
+        },
+        {
+          "find": "  --radius: 8px;",
+          "replace": "  --radius: {{RADIUS}};"
+        },
+        {
+          "find": "    --accent: #6fbf90;",
+          "replace": "    --accent: {{PRIMARY_DARK}};\n    --accent-secondary: {{SECONDARY_DARK}};"
+        }
+      ]
+    }
+  ]
+}

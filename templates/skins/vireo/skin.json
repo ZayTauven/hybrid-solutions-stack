@@ -1,0 +1,119 @@
+{
+  "title": "Vireo",
+  "description": "Tailwind v4, three-layer design tokens, twelve accents, thirteen layout dimensions, RTL. Four runtime dependencies and not a single fetch in the whole template, which makes it clean ground for the offline core.",
+  "source": {
+    "path": "vireo",
+    "license": "Envato Regular — one licence per end product. Not redistributable; keep your copy in skins-src/.",
+    "requires": [
+      "app/layout.tsx",
+      "app/(shell)/layout.tsx",
+      "src/lib/manifest.ts",
+      "src/components/shell/Sidebar.tsx",
+      "src/styles/tokens/_recipes.css",
+      "src/data/nav-manifest.json"
+    ]
+  },
+  "dependencies": {
+    "@hybrid/offline-core": "*",
+    "@tanstack/react-query": "^5.59.0",
+    "zustand": "^5.0.2"
+  },
+  "keepOnly": {
+    "app/(shell)": ["[...slug]", "layout.tsx", "page.tsx"],
+    "app/(bare)": ["error", "layout.tsx"],
+    "src/screens": ["Placeholder.tsx", "error", "pages"],
+    "src/screens/pages": ["Starter.tsx"],
+    "src/components": ["charts", "shell", "ui"]
+  },
+  "prune": [
+    "src/data/demo",
+    "src/data/icons"
+  ],
+  "layouts": [
+    "vertical-classic",
+    "vertical-compact",
+    "vertical-icon",
+    "horizontal",
+    "boxed",
+    "fluid-wide"
+  ],
+  "patches": [
+    {
+      "file": "app/layout.tsx",
+      "replacements": [
+        {
+          "find": "import type { Metadata, Viewport } from 'next';\nimport type { ReactNode } from 'react';",
+          "replace": "import type { Metadata, Viewport } from 'next';\nimport { Inter, JetBrains_Mono, Space_Grotesk } from 'next/font/google';\nimport type { ReactNode } from 'react';\n\n// Downloaded once at build time and served from this origin, instead of\n// fetched from Google on every visit. An offline-first first paint cannot wait\n// on a third-party CDN, and in the field that is the request most likely to\n// hang rather than fail fast.\nconst axSans = Inter({\n  subsets: ['latin'],\n  weight: ['400', '500', '600', '700'],\n  variable: '--font-ax-sans',\n  display: 'swap',\n});\nconst axDisplay = Space_Grotesk({\n  subsets: ['latin'],\n  weight: ['500', '600', '700'],\n  variable: '--font-ax-display',\n  display: 'swap',\n});\nconst axMono = JetBrains_Mono({\n  subsets: ['latin'],\n  weight: ['500', '600'],\n  variable: '--font-ax-mono',\n  display: 'swap',\n});"
+        },
+        {
+          "find": "        {/* Google Fonts — Inter (sans) · Space Grotesk (display) · JetBrains Mono (mono) */}\n        <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\" />\n        <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossOrigin=\"\" />\n        <link\n          href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap\"\n          rel=\"stylesheet\"\n        />",
+          "replace": "        {/* Fonts are self-hosted by next/font — nothing to fetch at runtime. */}"
+        },
+        {
+          "find": "    <html lang=\"en\" suppressHydrationWarning>",
+          "replace": "    <html\n      lang=\"en\"\n      suppressHydrationWarning\n      className={`${axSans.variable} ${axDisplay.variable} ${axMono.variable}`}\n    >"
+        },
+        {
+          "find": "import { CustomizerProvider } from '../src/context/CustomizerContext';",
+          "replace": "import { CustomizerProvider } from '../src/context/CustomizerContext';\nimport { OfflineProviders } from '../src/offline/providers';"
+        },
+        {
+          "find": "        <CustomizerProvider>{children}</CustomizerProvider>",
+          "replace": "        <OfflineProviders>\n          <CustomizerProvider>{children}</CustomizerProvider>\n        </OfflineProviders>"
+        }
+      ]
+    },
+    {
+      "file": "next.config.ts",
+      "replacements": [
+        {
+          "find": "const nextConfig: NextConfig = {\n  images: {",
+          "replace": "const nextConfig: NextConfig = {\n  // The offline core ships TypeScript source rather than a build step, so Next\n  // has to compile it like first-party code.\n  transpilePackages: ['@hybrid/offline-core'],\n  images: {"
+        }
+      ]
+    },
+    {
+      "file": "src/styles/tokens/_recipes.css",
+      "replacements": [
+        {
+          "find": "  --ax-font-sans:    \"Inter\", ui-sans-serif",
+          "replace": "  --ax-font-sans:    var(--font-ax-sans), \"Inter\", ui-sans-serif"
+        },
+        {
+          "find": "  --ax-font-display: \"Space Grotesk\", var(--ax-font-sans);",
+          "replace": "  --ax-font-display: var(--font-ax-display), \"Space Grotesk\", var(--ax-font-sans);"
+        },
+        {
+          "find": "  --ax-font-mono:    \"JetBrains Mono\", ui-monospace",
+          "replace": "  --ax-font-mono:    var(--font-ax-mono), \"JetBrains Mono\", ui-monospace"
+        }
+      ]
+    },
+    {
+      "file": "src/lib/manifest.ts",
+      "replacements": [
+        {
+          "find": "  if (!p || p === 'index') return 'dashboards/sales';",
+          "replace": "  if (!p || p === 'index') return 'invoices';"
+        }
+      ]
+    },
+    {
+      "file": "src/components/shell/Sidebar.tsx",
+      "replacements": [
+        {
+          "find": "aria-label=\"Vireo home\"",
+          "replace": "aria-label=\"{{PROJECT_NAME}} home\""
+        },
+        {
+          "find": "<stop stopColor=\"#2BC4B0\" /><stop offset=\"0.55\" stopColor=\"#1E9E96\" /><stop offset=\"1\" stopColor=\"#6D5CF0\" />",
+          "replace": "<stop stopColor=\"{{PRIMARY}}\" /><stop offset=\"0.55\" stopColor=\"{{PRIMARY}}\" /><stop offset=\"1\" stopColor=\"{{SECONDARY}}\" />"
+        },
+        {
+          "find": "<span className=\"ax-sidebar__wordmark\">VIREO</span>",
+          "replace": "<span className=\"ax-sidebar__wordmark\">{{PROJECT_NAME}}</span>"
+        }
+      ]
+    }
+  ]
+}

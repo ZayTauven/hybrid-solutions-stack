@@ -1,0 +1,14 @@
+{
+  "name": "@hybrid/create-hybrid-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Assembles an offline-first project from the backend, a skin and the offline core.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "create-hybrid-app": "./index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

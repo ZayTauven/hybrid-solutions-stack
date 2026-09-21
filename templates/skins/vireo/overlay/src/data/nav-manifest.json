@@ -1,0 +1,48 @@
+{
+  "$schema": "vireo-nav-manifest/v1",
+  "meta": {
+    "project": "{{PROJECT_NAME}}",
+    "note": "Replaces the template's 218-node demo navigation. The sidebar, breadcrumbs, menu filter and command palette all read this one file, so adding a page here is the whole job. Icons come from src/components/ui/Icon.tsx, which registers a handful and falls back to a dot for anything else."
+  },
+  "nodes": [
+    {
+      "id": "grp.operations",
+      "title": "Operations",
+      "slug": "invoices",
+      "icon": "layout-dashboard",
+      "parent": null,
+      "section": "MAIN",
+      "order": 1,
+      "badge": null,
+      "keywords": ["operations", "work", "daily"],
+      "inMenu": true,
+      "alias": null
+    },
+    {
+      "id": "operations.invoices",
+      "title": "Invoices",
+      "slug": "invoices",
+      "icon": "shopping-bag",
+      "parent": "grp.operations",
+      "section": null,
+      "order": 1,
+      "badge": null,
+      "keywords": ["invoice", "billing", "sales", "offline", "sync"],
+      "inMenu": true,
+      "alias": null
+    },
+    {
+      "id": "operations.conflicts",
+      "title": "Conflicts",
+      "slug": "conflicts",
+      "icon": "alert-triangle",
+      "parent": "grp.operations",
+      "section": null,
+      "order": 2,
+      "badge": null,
+      "keywords": ["conflict", "merge", "sync", "review"],
+      "inMenu": true,
+      "alias": null
+    }
+  ]
+}
