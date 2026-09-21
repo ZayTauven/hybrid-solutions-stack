@@ -1,13 +1,12 @@
 'use client';
 
+import { useAuth, useSyncQuery } from '@hybrid/offline-core';
 import { useMemo, useState } from 'react';
 
 import { InvoiceList } from '@/components/InvoiceList';
 import { LoginForm } from '@/components/LoginForm';
 import { SyncStatus } from '@/components/SyncStatus';
-import { useAuth } from '@/hooks/useAuth';
-import { useSyncQuery } from '@/hooks/useSyncQuery';
-import { useInvoiceStore } from '@/lib/stores/useInvoiceStore';
+import { useInvoiceStore } from '@/lib/stores/invoices';
 
 const TENANTS = ['MOR', 'MUT'];
 
@@ -20,17 +19,25 @@ export default function HomePage() {
 
   // Subscribing to the record itself, not to a getter: a getter returns a new
   // array on every call, which would re-render forever.
-  const invoiceMap = useInvoiceStore((state) => state.invoices);
-  // Scoped to the selected tenant: the device keeps every tenant it has been
-  // used for, and showing them together would misrepresent the isolation the
-  // server actually enforces.
+  const entities = useInvoiceStore((state) => state.entities);
+
+  // Scoped to the selected tenant, and tombstones filtered out: the device
+  // keeps every tenant it has been used for, and showing them together would
+  // misrepresent the isolation the server actually enforces.
   const invoices = useMemo(
-    () => Object.values(invoiceMap).filter((invoice) => invoice.tenantId === tenantId),
-    [invoiceMap, tenantId],
+    () =>
+      Object.values(entities).filter(
+        (invoice) => invoice.tenantId === tenantId && !invoice._isDeleted,
+      ),
+    [entities, tenantId],
   );
+
   const pendingCount = useMemo(
-    () => invoices.filter((invoice) => invoice._isDirty).length,
-    [invoices],
+    () =>
+      Object.values(entities).filter(
+        (invoice) => invoice.tenantId === tenantId && invoice._isDirty,
+      ).length,
+    [entities, tenantId],
   );
 
   const sync = useSyncQuery(tenantId);
@@ -84,7 +91,7 @@ export default function HomePage() {
         <section className="card">
           <h2>Conflicts</h2>
           <p className="muted">
-            These invoices were edited elsewhere while this device held an older
+            These records were edited elsewhere while this device held an older
             version. Nothing was overwritten — resolve them from the queue.
           </p>
           <ul>

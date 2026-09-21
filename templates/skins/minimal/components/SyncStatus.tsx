@@ -1,8 +1,7 @@
 'use client';
 
+import type { SyncResponse } from '@hybrid/offline-core';
 import { useEffect, useState } from 'react';
-
-import type { SyncResponse } from '@/hooks/useSyncQuery';
 
 interface SyncStatusProps {
   pendingCount: number;

@@ -1,0 +1,25 @@
+# The build context is the repository root, so keep out everything heavy or
+# licensed that must never reach an image layer.
+Next-template/
+next-template-cuba/
+Banque-assets/
+skins-src/
+assets-bank/
+
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+out/
+
+.git/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+.env
+**/.env
+*.tsbuildinfo
+celerybeat-schedule*

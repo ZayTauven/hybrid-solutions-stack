@@ -1,8 +1,7 @@
 'use client';
 
+import { useAuth } from '@hybrid/offline-core';
 import { useState, type FormEvent } from 'react';
-
-import { useAuth } from '@/hooks/useAuth';
 
 export function LoginForm() {
   const login = useAuth((state) => state.login);

@@ -121,21 +121,30 @@ services:
 
   nextjs:
     build:
-      context: ../nextjs-offline-first
-      dockerfile: Dockerfile
+      # Repository root: the skin depends on packages/offline-core through an
+      # npm workspace, which a context rooted in the skin cannot reach.
+      context: ../..
+      dockerfile: templates/skins/${SKIN:-minimal}/Dockerfile
     command: npm run dev
     environment:
       # Read by the browser: must point at Django directly, not at the
-      # Next.js origin (see the fix in hooks/useSyncQuery.ts).
+      # Next.js origin.
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-      NEXT_PUBLIC_API_TIMEOUT: "30000"
+      # Identifies this installation in the sync log, so the server does not
+      # echo its own writes back at it.
+      NEXT_PUBLIC_SYNC_ORIGIN: ${NEXT_PUBLIC_SYNC_ORIGIN:-web}
     ports:
       - "${NEXTJS_HOST_PORT:-3000}:3000"
     depends_on:
       - django
     volumes:
-      - ../nextjs-offline-first:/app
+      # Both the skin and the core are mounted: editing either is picked up
+      # without a rebuild. The anonymous volumes keep the container's installed
+      # dependencies from being masked by the host's.
+      - ../skins/${SKIN:-minimal}:/app/templates/skins/minimal
+      - ../../packages/offline-core:/app/packages/offline-core
       - /app/node_modules
+      - /app/templates/skins/minimal/node_modules
     networks:
       - hybrid
 

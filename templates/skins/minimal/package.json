@@ -1,15 +1,16 @@
 {
-  "name": "hybrid-nextjs-offline-first",
+  "name": "@hybrid/skin-minimal",
   "version": "1.0.0",
   "private": true,
+  "description": "Reference skin. Proves the offline core works detached from any design system.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hybrid/offline-core": "*",
     "@tanstack/react-query": "^5.59.0",
     "next": "^15.1.0",
     "react": "^19.0.0",

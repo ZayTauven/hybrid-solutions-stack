@@ -1,16 +1,21 @@
 'use client';
 
-import { useInvoiceStore, type Invoice, type InvoiceStatus } from '@/lib/stores/useInvoiceStore';
+import {
+  useInvoiceStore,
+  type Invoice,
+  type InvoiceStatus,
+} from '@/lib/stores/invoices';
 
 const STATUSES: InvoiceStatus[] = ['draft', 'sent', 'paid'];
 
 export function InvoiceList({ invoices, tenantId }: { invoices: Invoice[]; tenantId: string }) {
-  const addInvoice = useInvoiceStore((state) => state.addInvoice);
-  const updateInvoice = useInvoiceStore((state) => state.updateInvoice);
+  const add = useInvoiceStore((state) => state.add);
+  const update = useInvoiceStore((state) => state.update);
+  const remove = useInvoiceStore((state) => state.remove);
 
   function handleCreate() {
     const sequence = invoices.length + 1;
-    addInvoice({
+    add({
       id: crypto.randomUUID(),
       tenantId,
       number: `${tenantId}-${String(900 + sequence).padStart(3, '0')}`,
@@ -44,6 +49,7 @@ export function InvoiceList({ invoices, tenantId }: { invoices: Invoice[]; tenan
               <th>Amount</th>
               <th>Version</th>
               <th>State</th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -54,9 +60,7 @@ export function InvoiceList({ invoices, tenantId }: { invoices: Invoice[]; tenan
                   <select
                     value={invoice.status}
                     onChange={(e) =>
-                      updateInvoice(invoice.id, {
-                        status: e.target.value as InvoiceStatus,
-                      })
+                      update(invoice.id, { status: e.target.value as InvoiceStatus })
                     }
                   >
                     {STATUSES.map((status) => (
@@ -79,6 +83,11 @@ export function InvoiceList({ invoices, tenantId }: { invoices: Invoice[]; tenan
                   ) : (
                     <span className="badge">synced</span>
                   )}
+                </td>
+                <td>
+                  {/* The row disappears immediately, but the deletion is kept
+                      as a tombstone until the server acknowledges it. */}
+                  <button onClick={() => remove(invoice.id)}>Delete</button>
                 </td>
               </tr>
             ))}

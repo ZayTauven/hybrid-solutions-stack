@@ -1,0 +1,15 @@
+{
+  "name": "hybrid-solutions-stack",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Factory for offline-first, connectivity-resilient applications.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "templates/skins/minimal"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  }
+}
