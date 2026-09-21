@@ -87,6 +87,11 @@ class Invoice(models.Model):
     synced_at = models.DateTimeField(null=True, blank=True)
     is_dirty = models.BooleanField(default=False)
 
+    # Soft delete. A row removed outright leaves nothing for a site that has
+    # been offline since before the deletion to reconcile against, and takes
+    # its audit trail's foreign keys with it.
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
     # Audit
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

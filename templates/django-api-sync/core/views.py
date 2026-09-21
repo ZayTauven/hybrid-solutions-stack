@@ -120,6 +120,8 @@ def _apply_event(request, tenant, event, origin):
         if replayed is not None:
             return replayed
 
+        is_delete = event['operation'] == 'DELETE'
+
         invoice = (
             Invoice.objects.select_for_update()
             .filter(tenant=tenant, id=entity_id)
@@ -127,6 +129,14 @@ def _apply_event(request, tenant, event, origin):
         )
 
         if invoice is None:
+            if is_delete:
+                # Nothing to remove. Accepting lets the client drop its
+                # tombstone instead of retrying a deletion forever.
+                _record_event(request, tenant, event, origin, 'synced', event['version'])
+                return {
+                    'accepted': {'entityId': entity_id, 'version': event['version']},
+                    'conflict': None,
+                }
             return _create_invoice(request, tenant, event, origin)
 
         if invoice.version != base_version:
@@ -137,13 +147,21 @@ def _apply_event(request, tenant, event, origin):
                 ),
             }
 
-        fields = invoice_fields_from_payload(event['data'])
-        for name, value in fields.items():
-            setattr(invoice, name, value)
-        invoice.version = base_version + 1
-        invoice.synced_at = timezone.now()
-        invoice.is_dirty = False
-        invoice.save()
+        if is_delete:
+            if invoice.deleted_at is None:
+                invoice.deleted_at = timezone.now()
+                invoice.version = base_version + 1
+                invoice.synced_at = timezone.now()
+                invoice.is_dirty = False
+                invoice.save()
+        else:
+            fields = invoice_fields_from_payload(event['data'])
+            for name, value in fields.items():
+                setattr(invoice, name, value)
+            invoice.version = base_version + 1
+            invoice.synced_at = timezone.now()
+            invoice.is_dirty = False
+            invoice.save()
 
         _record_event(request, tenant, event, origin, 'synced', invoice.version)
 
@@ -355,7 +373,10 @@ def _events_since(tenant, last_sync_timestamp, origin):
 
 @api_view(['GET'])
 def list_invoices(request):
-    invoices = Invoice.objects.filter(tenant=request.tenant).order_by('-created_at')
+    invoices = (
+        Invoice.objects.filter(tenant=request.tenant, deleted_at__isnull=True)
+        .order_by('-created_at')
+    )
     return Response(InvoiceSerializer(invoices, many=True).data)
 
 
